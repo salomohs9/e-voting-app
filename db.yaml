@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  labels:
+    app: db
+spec:
+  accessModes:
+    - ReadWriteOnce # Can be mounted as read-write by a single node
+  resources:
+    requests:
+      storage: 1Gi # Request 1 Gigabyte of storage (adjust as needed)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+  labels:
+    app: db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+          # Maps to POSTGRES_USER in the Docker Compose file
+        - name: POSTGRES_USER
+          value: "postgres"
+          # Maps to POSTGRES_PASSWORD in the Docker Compose file
+        - name: POSTGRES_PASSWORD
+          value: "postgres"
+        volumeMounts:
+          # Mount the PVC to the default data directory inside the container
+        - mountPath: /var/lib/postgresql/data
+          name: db-storage
+      volumes:
+        # Define the volume that uses the PersistentVolumeClaim
+      - name: db-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  labels:
+    app: db
+spec:
+  selector:
+    app: db
+  ports:
+  - protocol: TCP
+    port: 5432
+    targetPort: 5432
+  # ClusterIP exposes the service internally to other Pods by the name 'db'
+  type: ClusterIP
