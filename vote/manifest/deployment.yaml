@@ -37,21 +37,44 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: vote
+  name: voting-app-ingress
   labels:
-    app: vote
+    app: voting-app
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    # 1. CRITICAL: Enable WebSocket/Socket.IO connection upgrade for real-time results
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+
+    # 2. Path Rewriting & Regex Enablement
+    # Path: /result(/|$)(.*)
+    # The regex requires two capture groups. $2 captures everything after /result/
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+
 spec:
   ingressClassName: nginx
   rules:
   - host: vote.rafiryd.local
     http:
       paths:
+      # --- Path A: Primary Voting App (ROOT /) ---
+      # Matches all requests not captured by /result
       - path: /
         pathType: Prefix
         backend:
           service:
             name: vote
+            port:
+              number: 80
+      
+      # --- Path B: Results Dashboard (/result) ---
+      # This path handles /result, /result/, and /result/assets/path
+      # It uses the ImplementationSpecific PathType which supports the NGINX rewrite regex.
+      - path: /result(/|$)(.*) 
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: result
             port:
               number: 80
