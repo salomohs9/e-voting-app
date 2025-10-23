@@ -48,8 +48,8 @@ spec:
   - host: vote.rafiryd.local
     http:
       paths:
-      - path: /result/(.*)
-        pathType: Prefix
+      - path: /result/?(.*)
+        pathType: ImplementationSpecific
         backend:
           service:
             name: result
